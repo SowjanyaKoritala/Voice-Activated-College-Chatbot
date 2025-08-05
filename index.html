@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VNIT College Chatbot</title>
+  <link rel="stylesheet" href="{% static 'chatbot/styles.css' %}">
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">VNITSW Chatbot</div>
+
+    <div class="chat-body" id="chat-body">
+      <div class="message bot">
+        Hello! I’m your VNITSW College Assistant. Ask me about departments, location, placements, and more!
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type or speak your question..." />
+      <button onclick="sendMessage()">Send</button>
+      <button onclick="startListening()">🎤</button>
+    </div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const inputField = document.getElementById("user-input");
+      const message = inputField.value.trim();
+      if (!message) return;
+
+      const chatBody = document.getElementById("chat-body");
+
+      const userMsg = document.createElement("div");
+      userMsg.className = "message user";
+      userMsg.innerText = message;
+      chatBody.appendChild(userMsg);
+
+      const response = await fetch("/ask/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ query: message })
+      });
+
+      const data = await response.json();
+      const botMsg = document.createElement("div");
+      botMsg.className = "message bot";
+      botMsg.innerText = data.response;
+      chatBody.appendChild(botMsg);
+
+      inputField.value = "";
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      // 🔊 Speak the bot response
+      speakResponse(data.response);
+    }
+
+    function startListening() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("user-input").value = transcript;
+        sendMessage();
+      };
+
+      recognition.onspeechend = function () {
+        recognition.stop();
+      };
+
+      recognition.onerror = function (event) {
+        alert("Voice recognition error: " + event.error);
+      };
+    }
+
+    function speakResponse(text) {
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      synth.speak(utterance);
+    }
+  </script>
+</body>
+</html>
